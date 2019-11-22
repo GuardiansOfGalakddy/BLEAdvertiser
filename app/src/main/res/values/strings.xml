@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">BLEAdvertising</string>
+    <string name="ble_uuid">f1426800-7928-4f60-bf9a-bc871a6bd51c</string>
+</resources>
