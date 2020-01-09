@@ -16,6 +16,12 @@
         android:layout_height="wrap_content"
         android:text="Discover" />
 
+    <Button
+        android:id="@+id/connect_btn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="connect" />
+
     <TextView
         android:id="@+id/text"
         android:layout_width="wrap_content"
