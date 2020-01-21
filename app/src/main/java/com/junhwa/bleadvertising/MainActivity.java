@@ -21,13 +21,19 @@ import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
+import android.content.ContentValues;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ParcelUuid;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.EditText;
+import android.widget.RadioGroup;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,22 +51,51 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, AutoPermissionsListener {
     //Layout components
     private TextView mText;
+    private TextView textView;
     private Button mAdvertiseButton;
     private Button mDiscoverButton;
     private Button connectButton;
+    private Button addButton;
+
+    private Switch switchDevice;
+    private Boolean boolDevice = false;
+    private Switch switchSTS;
+    private Boolean boolSTS = false;
+    private EditText editID;
+    private EditText editTime;
+
+    private RadioGroup radioGroupAID;
+    private RadioGroup radioGroupSEV;
+    private RadioGroup radioGroupALM;
     //Layout components
 
     //common components
+    UuidDbManager dbManager = null;
+    BluetoothLeAdvertiser advertiser = null;
     BluetoothManager bluetoothManager = null;
     BluetoothAdapter adapter = null;
-
-
 
     BluetoothGatt bluetoothGatt = null;
     BluetoothGattServer gattServer = null;
 
     BluetoothDevice device = null;
     UUID exUuid = null;
+
+    AdvertiseCallback advertiseCallback = new AdvertiseCallback() {
+        @Override
+        public void onStartSuccess(AdvertiseSettings settingsInEffect) {
+            Log.i("BLE", "Advertising onStartSuccess");
+            textView.setText("Advertising.. -> " + exUuid.toString());
+            super.onStartSuccess(settingsInEffect);
+        }
+
+        @Override
+        public void onStartFailure(int errorCode) {
+            Log.e("BLE", "Advertising onStartFailure : " + errorCode);
+            textView.setText("Advertise error.. -> " + errorCode);
+            super.onStartFailure(errorCode);
+        }
+    };
     //common components
 
     //discover() components
@@ -107,10 +142,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Log.i("onServicesDiscovered", "onServicesDiscovered received: " + gatt.getServices().size());
                 for (BluetoothGattService gattService : gatt.getServices()) {
                     Log.d("onServicesDiscovered", gattService.getUuid().toString());
-                    if (gattService.getUuid().equals(exUuid)) {
-                        for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
-                            Log.d("characteristic", characteristic.getUuid().toString());
-                        }
+                    for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
+                        Log.d("characteristic", characteristic.getUuid().toString());
                     }
                 }
             } else {
@@ -150,19 +183,42 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        long Uuid1 = 0x0042532D00020101L;//수집기
-        long Uuid2 = 0x0201130B050C1E2DL;
-        UUID uuid = new UUID(Uuid1, Uuid2);
-        exUuid = uuid;
-
+        dbManager = UuidDbManager.getInstance(this);
         mText = findViewById(R.id.text);
+        textView = findViewById(R.id.textView);
         mDiscoverButton = findViewById(R.id.discover_btn);
         mAdvertiseButton = findViewById(R.id.advertise_btn);
         connectButton = findViewById(R.id.connect_btn);
+        addButton = findViewById(R.id.add_btn);
+
+        switchDevice = findViewById(R.id.switchDevice);
+        switchSTS = findViewById(R.id.switchSTS);
+        editID = findViewById(R.id.editID);
+        editTime = findViewById(R.id.editTime);
+        radioGroupAID = findViewById(R.id.radioGroupAID);
+        radioGroupSEV = findViewById(R.id.radioGroupSEV);
+        radioGroupALM = findViewById(R.id.radioGroupALM);
+        radioGroupAID.check(R.id.radioAID0);
+        radioGroupSEV.check(R.id.radioSEV0);
+        radioGroupALM.check(R.id.radioALM0);
+
+        switchDevice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                boolDevice = isChecked;
+            }
+        });
+        switchSTS.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                boolSTS = isChecked;
+            }
+        });
 
         mDiscoverButton.setOnClickListener(this);
         mAdvertiseButton.setOnClickListener(this);
         connectButton.setOnClickListener(this);
+        addButton.setOnClickListener(this);
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(this, "this device does not support BLE", Toast.LENGTH_SHORT).show();
@@ -179,9 +235,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         mBluetoothLeScanner = adapter.getBluetoothLeScanner();
-        Set<BluetoothDevice> devices =  adapter.getBondedDevices();
+        Set<BluetoothDevice> devices = adapter.getBondedDevices();
         Iterator iterator = devices.iterator();
-        while (iterator.hasNext()){
+        while (iterator.hasNext()) {
             BluetoothDevice device = (BluetoothDevice) iterator.next();
             Log.d("bonded", device.getName() + "/" + device.getAddress());
         }
@@ -193,15 +249,34 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         if (v.getId() == R.id.discover_btn)
             discover();
-        else if (v.getId() == R.id.advertise_btn)
-            advertise();
-        else if (v.getId() == R.id.connect_btn)
+        else if (v.getId() == R.id.advertise_btn) {
+            if (mAdvertiseButton.getText().toString().equals("START ADVERTISE"))
+                advertise();
+            else
+                stopAdvertise();
+        } else if (v.getId() == R.id.connect_btn)
             connect();
+        else if (v.getId() == R.id.add_btn)
+            add();
     }
 
     private void connect() {
         bluetoothGatt = device.connectGatt(getApplicationContext(), false, gattCallback, 2);
 
+    }
+
+    private void add() {
+        UUID uuid = makeUuid();
+        if (uuid == null) {
+            Toast.makeText(getApplicationContext(), "UUID를 정확히 설정하세요.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        ContentValues addRowValue = new ContentValues();
+        addRowValue.put("uuid", uuid.toString());
+        dbManager.insert(addRowValue);
+        Toast.makeText(getApplicationContext(), "Success -> " + uuid.toString(), Toast.LENGTH_LONG).show();
+        editID.setText("");
+        editTime.setText("");
     }
 
     private void discover() {
@@ -225,19 +300,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void advertise() {
-        BluetoothLeAdvertiser advertiser = adapter.getBluetoothLeAdvertiser();
+        advertiser = adapter.getBluetoothLeAdvertiser();
         AdvertiseSettings settings = new AdvertiseSettings.Builder()
                 .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
                 .setConnectable(true)
                 .build();
 
-        long Uuid1 = 0x0042532D00020101L;//수집기
-        long Uuid2 = 0x0201130B050C1E2DL;
+        long Uuid1 = 0x0052532D00020101L;//수집기
+        long Uuid2 = 0x0200130B050C1E2DL;
         UUID uuid = new UUID(Uuid1, Uuid2);
-        exUuid = uuid;
+        exUuid = makeUuid();
+        if (exUuid == null)
+            exUuid = uuid;
 
-        ParcelUuid pUuid = new ParcelUuid(uuid);
+        ParcelUuid pUuid = new ParcelUuid(exUuid);
         adapter.setName("test");
 
         AdvertiseData data = new AdvertiseData.Builder()
@@ -245,34 +322,108 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .addServiceUuid(pUuid)
                 .build();
 
-        AdvertiseCallback advertiseCallback = new AdvertiseCallback() {
-            @Override
-            public void onStartSuccess(AdvertiseSettings settingsInEffect) {
-                Log.i("BLE", "Advertising onStartSuccess");
-                super.onStartSuccess(settingsInEffect);
-            }
-
-            @Override
-            public void onStartFailure(int errorCode) {
-                Log.e("BLE", "Advertising onStartFailure : " + errorCode);
-                super.onStartFailure(errorCode);
-            }
-        };
-
         advertiser.startAdvertising(settings, data, advertiseCallback);
+        mAdvertiseButton.setText("Stop advertise");
 
         gattServer = bluetoothManager.openGattServer(getApplicationContext(), gattServerCallback);
-        BluetoothGattService service = new BluetoothGattService(exUuid, BluetoothGattService.SERVICE_TYPE_PRIMARY);
-        BluetoothGattCharacteristic characteristic
-                = new BluetoothGattCharacteristic(UUID.fromString("453d1ed7-9c6a-47e6-b774-4a736be00baa"),
-                BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
-        BluetoothGattCharacteristic characteristic2
-                = new BluetoothGattCharacteristic(UUID.fromString("453d1ed7-9c6a-47e6-b774-4a736be00bab"),
-                BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
-        service.addCharacteristic(characteristic);
-        service.addCharacteristic(characteristic2);
-        gattServer.addService(service);
+        gattServer.clearServices();
+        BluetoothGattService uuidService = new BluetoothGattService(UUID.fromString("453d1ed7-9c6a-47e6-b774-4a736be00baa"),
+                BluetoothGattService.SERVICE_TYPE_PRIMARY);
+        BluetoothGattService subService = new BluetoothGattService(UUID.fromString("453d1ed7-9c6a-47e6-b774-4a736be00bab"),
+                BluetoothGattService.SERVICE_TYPE_PRIMARY);
+
+        Cursor uuidCursor = dbManager.getUuid();
+        while (uuidCursor.moveToNext()) {
+            uuidService.addCharacteristic(new BluetoothGattCharacteristic(UUID.fromString(uuidCursor.getString(0)),
+                    BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ));
+            Log.d("addCharacteristic", uuidCursor.getString(0));
+        }
+
+        gattServer.addService(uuidService);
+        gattServer.addService(subService);
     }
+
+    private UUID makeUuid() {
+        if (editID.getText().length() != 4) {
+            Toast.makeText(getApplicationContext(), "ID를 4글자로 설정해주세요.", Toast.LENGTH_LONG).show();
+            return null;
+        }
+        StringBuilder builder = new StringBuilder("00");
+        builder.append(boolDevice ? "42532D" : "52532D")
+                .append(editID.getText().toString());
+        switch (radioGroupAID.getCheckedRadioButtonId()) {
+            case R.id.radioAID0:
+                builder.append("00");
+                break;
+            case R.id.radioAID1:
+                builder.append("01");
+                break;
+            case R.id.radioAID2:
+                builder.append("02");
+                break;
+            case R.id.radioAID3:
+                builder.append("03");
+                break;
+        }
+        switch (radioGroupSEV.getCheckedRadioButtonId()) {
+            case R.id.radioSEV0:
+                builder.append("00");
+                break;
+            case R.id.radioSEV1:
+                builder.append("01");
+                break;
+            case R.id.radioSEV2:
+                builder.append("02");
+                break;
+        }
+        switch (radioGroupALM.getCheckedRadioButtonId()) {
+            case R.id.radioALM0:
+                builder.append("00");
+                break;
+            case R.id.radioALM1:
+                builder.append("01");
+                break;
+            case R.id.radioALM2:
+                builder.append("02");
+                break;
+        }
+        builder.append(boolSTS ? "01" : "00");
+        if (editTime.getText().length() == 0) {
+            builder.append("130B050C1E2D");
+        } else if (editTime.getText().length() == 12) {
+            if (Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(0, 2))).length() < 2)
+                builder.append("0");
+            builder.append(Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(0, 2))));
+            if (Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(2, 4))).length() < 2)
+                builder.append("0");
+            builder.append(Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(2, 4))));
+            if (Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(4, 6))).length() < 2)
+                builder.append("0");
+            builder.append(Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(4, 6))));
+            if (Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(6, 8))).length() < 2)
+                builder.append("0");
+            builder.append(Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(6, 8))));
+            if (Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(8, 10))).length() < 2)
+                builder.append("0");
+            builder.append(Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(8, 10))));
+            if (Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(10))).length() < 2)
+                builder.append("0");
+            builder.append(Integer.toHexString(Integer.parseInt(editTime.getText().toString().substring(10))));
+        } else {
+            Toast.makeText(getApplicationContext(), "시간을 12자로 입력하거나 비워두세요", Toast.LENGTH_LONG).show();
+            return null;
+        }
+        long uuid1 = Long.parseLong(builder.substring(0, 16), 16);
+        long uuid2 = Long.parseLong(builder.substring(16), 16);
+        UUID uuid = new UUID(uuid1, uuid2);
+        return uuid;
+    }
+
+    private void stopAdvertise() {
+        advertiser.stopAdvertising(advertiseCallback);
+        mAdvertiseButton.setText("START ADVERTISE");
+        textView.setText("Advertise stopped");
+    }//0052532d-0002-0301-0000-0101e110010b
 
     @Override
     public void onDenied(int i, String[] strings) {
