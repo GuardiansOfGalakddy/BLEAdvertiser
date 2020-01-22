@@ -22,6 +22,7 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.os.Bundle;
@@ -52,10 +53,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     //Layout components
     private TextView mText;
     private TextView textView;
-    private Button mAdvertiseButton;
-    private Button mDiscoverButton;
+    private Button advertiseButton;
+    private Button discoverButton;
     private Button connectButton;
     private Button addButton;
+    private Button uuidButton;
 
     private Switch switchDevice;
     private Boolean boolDevice = false;
@@ -186,10 +188,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         dbManager = UuidDbManager.getInstance(this);
         mText = findViewById(R.id.text);
         textView = findViewById(R.id.textView);
-        mDiscoverButton = findViewById(R.id.discover_btn);
-        mAdvertiseButton = findViewById(R.id.advertise_btn);
+        discoverButton = findViewById(R.id.discover_btn);
+        advertiseButton = findViewById(R.id.advertise_btn);
         connectButton = findViewById(R.id.connect_btn);
         addButton = findViewById(R.id.add_btn);
+        uuidButton = findViewById(R.id.uuid_btn);
 
         switchDevice = findViewById(R.id.switchDevice);
         switchSTS = findViewById(R.id.switchSTS);
@@ -215,10 +218,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         });
 
-        mDiscoverButton.setOnClickListener(this);
-        mAdvertiseButton.setOnClickListener(this);
+        discoverButton.setOnClickListener(this);
+        advertiseButton.setOnClickListener(this);
         connectButton.setOnClickListener(this);
         addButton.setOnClickListener(this);
+        uuidButton.setOnClickListener(this);
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(this, "this device does not support BLE", Toast.LENGTH_SHORT).show();
@@ -230,8 +234,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if (!adapter.isMultipleAdvertisementSupported()) {
             Toast.makeText(this, "Multiple advertisement not supported", Toast.LENGTH_LONG).show();
-            mAdvertiseButton.setEnabled(false);
-            mDiscoverButton.setEnabled(false);
+            advertiseButton.setEnabled(false);
+            discoverButton.setEnabled(false);
         }
 
         mBluetoothLeScanner = adapter.getBluetoothLeScanner();
@@ -250,7 +254,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (v.getId() == R.id.discover_btn)
             discover();
         else if (v.getId() == R.id.advertise_btn) {
-            if (mAdvertiseButton.getText().toString().equals("START ADVERTISE"))
+            if (advertiseButton.getText().toString().equals("START ADVERTISE"))
                 advertise();
             else
                 stopAdvertise();
@@ -258,6 +262,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             connect();
         else if (v.getId() == R.id.add_btn)
             add();
+        else if (v.getId() == R.id.uuid_btn) {
+            Intent intent = new Intent(getApplicationContext(), HistoryActivity.class);
+            startActivity(intent);
+        }
     }
 
     private void connect() {
@@ -323,7 +331,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .build();
 
         advertiser.startAdvertising(settings, data, advertiseCallback);
-        mAdvertiseButton.setText("Stop advertise");
+        advertiseButton.setText("Stop advertise");
 
         gattServer = bluetoothManager.openGattServer(getApplicationContext(), gattServerCallback);
         gattServer.clearServices();
@@ -421,7 +429,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void stopAdvertise() {
         advertiser.stopAdvertising(advertiseCallback);
-        mAdvertiseButton.setText("START ADVERTISE");
+        advertiseButton.setText("START ADVERTISE");
         textView.setText("Advertise stopped");
     }//0052532d-0002-0301-0000-0101e110010b
 

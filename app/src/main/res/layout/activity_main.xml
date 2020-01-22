@@ -20,7 +20,7 @@
             android:id="@+id/editID"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_weight="2"
             android:digits="0123456789ABCDEF"
             android:hint="ID" />
 
@@ -141,32 +141,43 @@
             android:id="@+id/advertise_btn"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="10dp"
             android:layout_weight="1"
             android:text="START ADVERTISE" />
-
-        <Button
-            android:id="@+id/discover_btn"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_margin="10dp"
-            android:layout_weight="1"
-            android:text="Discover" />
 
         <Button
             android:id="@+id/add_btn"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="10dp"
             android:layout_weight="1"
             android:text="ADD" />
+
+        <Button
+            android:id="@+id/uuid_btn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="uuid history" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/connect_btn"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="connect" />
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/discover_btn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Discover" />
+
+        <Button
+            android:id="@+id/connect_btn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="connect" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/textView"
